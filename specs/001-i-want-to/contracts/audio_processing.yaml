@@ -1,0 +1,174 @@
+openapi: 3.0.3
+info:
+  title: Audio Processing Interface
+  description: Contract for real-time audio processing operations
+  version: 1.0.0
+
+paths:
+  /audio/start:
+    post:
+      summary: Start audio processing
+      description: Initialize audio processing with specified configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AudioConfig'
+      responses:
+        '200':
+          description: Audio processing started successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AudioStatus'
+        '400':
+          description: Invalid audio configuration
+        '500':
+          description: Audio hardware error
+
+  /audio/stop:
+    post:
+      summary: Stop audio processing
+      description: Gracefully stop audio processing and release resources
+      responses:
+        '200':
+          description: Audio processing stopped successfully
+        '500':
+          description: Error stopping audio processing
+
+  /audio/process:
+    post:
+      summary: Process audio frame
+      description: Process a single frame of audio through effects chain
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AudioFrame'
+      responses:
+        '200':
+          description: Audio frame processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AudioFrame'
+        '400':
+          description: Invalid audio frame data
+        '500':
+          description: Processing error
+
+  /audio/status:
+    get:
+      summary: Get audio processing status
+      description: Retrieve current status of audio processing
+      responses:
+        '200':
+          description: Current audio status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AudioStatus'
+
+components:
+  schemas:
+    AudioConfig:
+      type: object
+      required:
+        - input_device
+        - output_device
+        - sample_rate
+        - buffer_size
+      properties:
+        input_device:
+          type: string
+          description: Name of input audio device
+          example: "Scarlett 2i2 USB"
+        output_device:
+          type: string
+          description: Name of output audio device
+          example: "BlackHole 2ch"
+        sample_rate:
+          type: integer
+          description: Audio sample rate in Hz
+          enum: [44100, 48000, 96000]
+          example: 48000
+        buffer_size:
+          type: integer
+          description: Audio buffer size in samples
+          enum: [32, 64, 128, 256, 512, 1024]
+          example: 256
+        input_channels:
+          type: array
+          items:
+            type: integer
+          description: Active input channel indices
+          example: [0]
+        output_channels:
+          type: array
+          items:
+            type: integer
+          description: Active output channel indices
+          example: [0, 1]
+
+    AudioFrame:
+      type: object
+      required:
+        - samples
+        - channels
+        - sample_rate
+      properties:
+        samples:
+          type: array
+          items:
+            type: array
+            items:
+              type: number
+              format: float
+          description: Audio samples organized by channel
+        channels:
+          type: integer
+          description: Number of audio channels
+          minimum: 1
+          maximum: 8
+        sample_rate:
+          type: integer
+          description: Sample rate of the audio frame
+        timestamp:
+          type: number
+          format: double
+          description: Timestamp of the audio frame
+
+    AudioStatus:
+      type: object
+      properties:
+        active:
+          type: boolean
+          description: Whether audio processing is currently active
+        latency_ms:
+          type: number
+          format: float
+          description: Current measured latency in milliseconds
+        cpu_usage:
+          type: number
+          format: float
+          description: CPU usage percentage for audio processing
+        buffer_underruns:
+          type: integer
+          description: Count of buffer underrun events
+        buffer_overruns:
+          type: integer
+          description: Count of buffer overrun events
+        sample_rate:
+          type: integer
+          description: Current sample rate
+        buffer_size:
+          type: integer
+          description: Current buffer size
+        input_device:
+          type: string
+          description: Currently selected input device
+        output_device:
+          type: string
+          description: Currently selected output device

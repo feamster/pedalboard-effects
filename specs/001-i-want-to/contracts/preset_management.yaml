@@ -1,0 +1,417 @@
+openapi: 3.0.3
+info:
+  title: Preset Management Interface
+  description: Contract for saving, loading, and managing effect chain presets
+  version: 1.0.0
+
+paths:
+  /presets:
+    get:
+      summary: List all presets
+      description: Retrieve a list of all saved presets
+      parameters:
+        - name: tags
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+          description: Filter presets by tags
+          style: form
+          explode: true
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search presets by name or description
+      responses:
+        '200':
+          description: List of presets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PresetSummary'
+
+    post:
+      summary: Save new preset
+      description: Save the current effects chain as a new preset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PresetCreate'
+      responses:
+        '201':
+          description: Preset saved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Preset'
+        '400':
+          description: Invalid preset data
+        '409':
+          description: Preset name already exists
+
+  /presets/{preset_id}:
+    get:
+      summary: Get preset details
+      description: Retrieve complete preset configuration
+      parameters:
+        - name: preset_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Preset details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Preset'
+        '404':
+          description: Preset not found
+
+    put:
+      summary: Update preset
+      description: Update an existing preset configuration
+      parameters:
+        - name: preset_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PresetUpdate'
+      responses:
+        '200':
+          description: Preset updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Preset'
+        '400':
+          description: Invalid preset data
+        '404':
+          description: Preset not found
+
+    delete:
+      summary: Delete preset
+      description: Delete a saved preset
+      parameters:
+        - name: preset_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Preset deleted successfully
+        '404':
+          description: Preset not found
+
+  /presets/{preset_id}/load:
+    post:
+      summary: Load preset
+      description: Load a preset configuration into the current effects chain
+      parameters:
+        - name: preset_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Preset loaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EffectsChain'
+        '404':
+          description: Preset not found
+        '500':
+          description: Error loading preset
+
+  /presets/export:
+    post:
+      summary: Export presets
+      description: Export multiple presets to a file
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                preset_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  description: IDs of presets to export
+                format:
+                  type: string
+                  enum: [json, xml]
+                  default: json
+                  description: Export file format
+              required:
+                - preset_ids
+      responses:
+        '200':
+          description: Presets exported successfully
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Invalid export request
+
+  /presets/import:
+    post:
+      summary: Import presets
+      description: Import presets from a file
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Preset file to import
+                overwrite_existing:
+                  type: boolean
+                  default: false
+                  description: Whether to overwrite existing presets with same name
+              required:
+                - file
+      responses:
+        '200':
+          description: Presets imported successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  imported_count:
+                    type: integer
+                    description: Number of presets imported
+                  skipped_count:
+                    type: integer
+                    description: Number of presets skipped
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    description: Any import errors
+        '400':
+          description: Invalid import file
+
+components:
+  schemas:
+    Preset:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the preset
+        name:
+          type: string
+          description: Human-readable preset name
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          nullable: true
+          description: Optional description of the preset
+          maxLength: 500
+        effects_chain_config:
+          $ref: '#/components/schemas/EffectsChainConfig'
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when preset was created
+        modified_at:
+          type: string
+          format: date-time
+          description: Timestamp when preset was last modified
+        tags:
+          type: array
+          items:
+            type: string
+            pattern: '^[a-zA-Z0-9_-]+$'
+          description: Searchable tags for the preset
+        author:
+          type: string
+          nullable: true
+          description: Creator of the preset
+        version:
+          type: string
+          description: Preset format version
+          default: "1.0.0"
+
+    PresetSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        tags:
+          type: array
+          items:
+            type: string
+        effect_count:
+          type: integer
+          description: Number of effects in the preset
+
+    PresetCreate:
+      type: object
+      required:
+        - name
+        - effects_chain_config
+      properties:
+        name:
+          type: string
+          description: Name for the preset
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          nullable: true
+          description: Optional description
+          maxLength: 500
+        effects_chain_config:
+          $ref: '#/components/schemas/EffectsChainConfig'
+        tags:
+          type: array
+          items:
+            type: string
+            pattern: '^[a-zA-Z0-9_-]+$'
+          description: Tags for categorizing the preset
+        author:
+          type: string
+          nullable: true
+          description: Creator identification
+
+    PresetUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Updated preset name
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          nullable: true
+          description: Updated description
+          maxLength: 500
+        effects_chain_config:
+          $ref: '#/components/schemas/EffectsChainConfig'
+        tags:
+          type: array
+          items:
+            type: string
+            pattern: '^[a-zA-Z0-9_-]+$'
+          description: Updated tags
+
+    EffectsChainConfig:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the effects chain
+        effects:
+          type: array
+          items:
+            $ref: '#/components/schemas/EffectConfig'
+          description: Configuration for each effect in the chain
+          maxItems: 8
+
+    EffectConfig:
+      type: object
+      required:
+        - type
+        - parameters
+      properties:
+        type:
+          type: string
+          enum: [BOOST, DISTORTION, DELAY, REVERB]
+          description: Type of effect
+        parameters:
+          type: object
+          additionalProperties: true
+          description: Effect-specific parameter values
+        bypassed:
+          type: boolean
+          default: false
+          description: Whether the effect is bypassed
+        preset_name:
+          type: string
+          nullable: true
+          description: Name of effect-specific preset
+
+    EffectsChain:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        effects:
+          type: array
+          items:
+            $ref: '#/components/schemas/AudioEffect'
+        active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        modified_at:
+          type: string
+          format: date-time
+
+    AudioEffect:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [BOOST, DISTORTION, DELAY, REVERB]
+        parameters:
+          type: object
+          additionalProperties: true
+        bypassed:
+          type: boolean
+        position:
+          type: integer
+          minimum: 0
+        preset_name:
+          type: string
+          nullable: true

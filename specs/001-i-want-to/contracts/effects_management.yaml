@@ -1,0 +1,372 @@
+openapi: 3.0.3
+info:
+  title: Effects Management Interface
+  description: Contract for managing guitar effects chain and parameters
+  version: 1.0.0
+
+paths:
+  /effects/chain:
+    get:
+      summary: Get current effects chain
+      description: Retrieve the current effects chain configuration
+      responses:
+        '200':
+          description: Current effects chain
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EffectsChain'
+
+    post:
+      summary: Create new effects chain
+      description: Create a new effects chain with specified configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EffectsChainCreate'
+      responses:
+        '201':
+          description: Effects chain created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EffectsChain'
+        '400':
+          description: Invalid effects chain configuration
+
+  /effects/chain/{chain_id}:
+    put:
+      summary: Update effects chain
+      description: Update an existing effects chain configuration
+      parameters:
+        - name: chain_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EffectsChainUpdate'
+      responses:
+        '200':
+          description: Effects chain updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EffectsChain'
+        '404':
+          description: Effects chain not found
+
+  /effects/chain/{chain_id}/effects:
+    post:
+      summary: Add effect to chain
+      description: Add a new effect to the specified effects chain
+      parameters:
+        - name: chain_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EffectCreate'
+      responses:
+        '201':
+          description: Effect added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AudioEffect'
+        '400':
+          description: Invalid effect configuration
+
+  /effects/chain/{chain_id}/effects/{effect_id}:
+    delete:
+      summary: Remove effect from chain
+      description: Remove an effect from the effects chain
+      parameters:
+        - name: chain_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: effect_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Effect removed successfully
+        '404':
+          description: Effect or chain not found
+
+  /effects/chain/{chain_id}/reorder:
+    post:
+      summary: Reorder effects in chain
+      description: Change the order of effects in the chain
+      parameters:
+        - name: chain_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EffectOrder'
+      responses:
+        '200':
+          description: Effects reordered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EffectsChain'
+        '400':
+          description: Invalid reorder configuration
+
+  /effects/{effect_id}/parameters:
+    get:
+      summary: Get effect parameters
+      description: Retrieve all parameters for a specific effect
+      parameters:
+        - name: effect_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Effect parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EffectParameters'
+        '404':
+          description: Effect not found
+
+    put:
+      summary: Update effect parameters
+      description: Update one or more parameters for an effect
+      parameters:
+        - name: effect_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EffectParametersUpdate'
+      responses:
+        '200':
+          description: Parameters updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EffectParameters'
+        '400':
+          description: Invalid parameter values
+        '404':
+          description: Effect not found
+
+  /effects/{effect_id}/bypass:
+    post:
+      summary: Toggle effect bypass
+      description: Enable or disable effect bypass
+      parameters:
+        - name: effect_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bypassed:
+                  type: boolean
+                  description: Whether to bypass the effect
+              required:
+                - bypassed
+      responses:
+        '200':
+          description: Effect bypass status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AudioEffect'
+        '404':
+          description: Effect not found
+
+components:
+  schemas:
+    EffectsChain:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the effects chain
+        name:
+          type: string
+          description: Human-readable name for the chain
+          minLength: 1
+          maxLength: 50
+        effects:
+          type: array
+          items:
+            $ref: '#/components/schemas/AudioEffect'
+          description: Ordered list of effects in the chain
+          maxItems: 8
+        active:
+          type: boolean
+          description: Whether the chain is currently processing audio
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when the chain was created
+        modified_at:
+          type: string
+          format: date-time
+          description: Timestamp when the chain was last modified
+
+    EffectsChainCreate:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Name for the new effects chain
+          minLength: 1
+          maxLength: 50
+        effects:
+          type: array
+          items:
+            $ref: '#/components/schemas/EffectCreate'
+          description: Initial effects for the chain
+          maxItems: 8
+
+    EffectsChainUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Updated name for the effects chain
+          minLength: 1
+          maxLength: 50
+        active:
+          type: boolean
+          description: Whether to activate or deactivate the chain
+
+    AudioEffect:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the effect
+        type:
+          type: string
+          enum: [BOOST, DISTORTION, DELAY, REVERB]
+          description: Type of audio effect
+        parameters:
+          type: object
+          additionalProperties: true
+          description: Effect-specific parameters
+        bypassed:
+          type: boolean
+          description: Whether the effect is bypassed
+        position:
+          type: integer
+          minimum: 0
+          description: Position in the effects chain (0-based)
+        preset_name:
+          type: string
+          nullable: true
+          description: Name of saved parameter preset
+
+    EffectCreate:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum: [BOOST, DISTORTION, DELAY, REVERB]
+          description: Type of audio effect to create
+        parameters:
+          type: object
+          additionalProperties: true
+          description: Initial effect parameters
+        position:
+          type: integer
+          minimum: 0
+          description: Position to insert in chain
+
+    EffectOrder:
+      type: object
+      required:
+        - effect_ids
+      properties:
+        effect_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Effect IDs in desired order
+
+    EffectParameters:
+      type: object
+      additionalProperties:
+        type: object
+        properties:
+          value:
+            type: number
+            description: Current parameter value
+          min_value:
+            type: number
+            description: Minimum allowed value
+          max_value:
+            type: number
+            description: Maximum allowed value
+          default_value:
+            type: number
+            description: Factory default value
+          units:
+            type: string
+            description: Parameter units for display
+          curve_type:
+            type: string
+            enum: [linear, logarithmic, exponential]
+            description: Parameter scaling curve
+
+    EffectParametersUpdate:
+      type: object
+      additionalProperties:
+        type: number
+        description: Updated parameter value
